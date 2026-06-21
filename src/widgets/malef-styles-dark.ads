@@ -30,11 +30,21 @@ with Malef.Styles.Sheets;
 
 package Malef.Styles.Dark is
 
-   Style : constant Sheets.Style_Sheet :=
-      [ "dialog" => [ Background       => "#33FF00"
-                    , Foreground       => "#00FF33"
-                    , Border_Thickness => "Thick"
-                    ]
-      ];
+   pragma Elaborate_Body;
+
+   --  Default dark style sheet.
+   --
+   --  Upstream declares this as an Ada 2022 container aggregate constant, but
+   --  GNAT 15.0.1 (prerelease) hits a frontend stack overflow while analyzing
+   --  that aggregate.  It is therefore a (non-constant) package object that
+   --  the body populates during its own elaboration (see malef-styles-dark.adb
+   --  for why a deferred constant was not viable); the public name and access
+   --  syntax are otherwise unchanged.  Restore the upstream aggregate +
+   --  'constant' once a GNAT release without the bug is in use.
+   Style : Sheets.Style_Sheet;
+
+private
+
+   function Make_Style return Sheets.Style_Sheet;
 
 end Malef.Styles.Dark;
