@@ -41,15 +41,21 @@ separate (Malef.Platform.Terminal.Input)
 
       use Interfaces;
 
-      type FILE is new System.Address;
       type ssize_t is new C.int;
 
-      function ferror (
-         stream : in FILE)
-         return C.int with
-         Import        => True,
-         Convention    => C,
-         External_Name => "ferror";
+      --  The byte is fetched with the raw POSIX read() syscall on the
+      --  STDIN_FILENO descriptor rather than through a C FILE* stream.
+      --
+      --  Upstream additionally imported the C 'stdin' FILE* and ran
+      --  'ferror (stdin)' after the read.  That test was dead code: a raw
+      --  read() never touches the stdio stream, so ferror(stdin) only ever
+      --  reflects failures from unrelated Ada.Text_IO use on Standard_Input,
+      --  which would spuriously raise Device_Error here.  It was also the only
+      --  reference to the 'stdin' symbol, which does not exist on macOS/BSD
+      --  (the standard streams are __stdinp / __stdoutp / __stderrp) and so
+      --  broke the final link on Darwin.  The dead branch and the unused
+      --  'stdin'/'EOF_Ch' imports are therefore removed; behaviour on glibc
+      --  targets is unchanged and the link now succeeds on Darwin too.
 
       function read (
          fd    : in C.int;
@@ -62,17 +68,6 @@ separate (Malef.Platform.Terminal.Input)
 
       STDIN_FILENO : constant := 1;
 
-      stdin : aliased constant FILE with
-         Import        => True,
-         Convention    => C,
-         External_Name => "stdin";
-
-      EOF_Ch : aliased constant Unsigned_8 with
-         Import        => True,
-         Convention    => C,
-         External_Name => "__malef__platform__terminal__input___c_eof_ch";
-
-      use type C.int;
       Buffer : aliased Unsigned_8;
       Count  : ssize_t;
 
@@ -84,8 +79,6 @@ separate (Malef.Platform.Terminal.Input)
       if Count = -1 then
          raise Termination_Error;
       elsif Count = 0 then
-         raise Device_Error;
-      elsif ferror (stdin) /= 0 then
          raise Device_Error;
       else
          Item := Buffer;
